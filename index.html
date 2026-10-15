@@ -73,6 +73,9 @@ h1{font-size:1.6rem;margin:0 0 6px;line-height:1.4}
 .rv .rq{font-weight:600;margin-bottom:6px}
 .rv .ra{color:var(--ok);font-weight:600}
 .rv .re{color:var(--muted);font-size:.92rem;margin-top:4px}
+.link{background:none;border:0;padding:0;color:var(--accent);font:inherit;font-weight:600;cursor:pointer}
+.resume{margin-bottom:16px;border-color:var(--accent)}
+.resume .lead{margin:4px 0 0}
 .hint{color:var(--muted);font-size:.8rem;margin-top:14px;text-align:center}
 footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:28px}
 @media (max-width:480px){.card{padding:18px}.q{font-size:1.08rem}h1{font-size:1.35rem}}
@@ -286,11 +289,29 @@ function prep(raw){
   return {l,q,o:idx.map(i=>o[i]),a:idx.indexOf(a),e};
 }
 
+const KEY="poq_progress_v1";
+function save(){try{localStorage.setItem(KEY,JSON.stringify({sel:[...sel],count,S}));}catch(e){}}
+function load(){
+  try{
+    const d=JSON.parse(localStorage.getItem(KEY)||"null");
+    if(!d) return;
+    if(Array.isArray(d.sel)) sel=new Set(d.sel.filter(n=>LECT[n]));
+    if(["20","40","all"].includes(d.count)) count=d.count;
+    if(d.S&&Array.isArray(d.S.list)&&d.S.list.length&&d.S.i<=d.S.list.length) S=d.S;
+  }catch(e){}
+}
+
 function home(){
   const pool=Q.filter(x=>sel.has(x[0])).length;
-  app.innerHTML=`<div class="card">
-    <h1>اختبر نفسك قبل الميد</h1>
-    <p class="lead">${Q.length} سؤال من المحاضرات الخمس، مع تفسير لكل إجابة. الأسئلة والخيارات تُخلط في كل مرة.</p>
+  const resume=S&&!S.done;
+  app.innerHTML=`${resume?`<div class="card resume">
+    <b>لديك اختبار لم يكتمل</b>
+    <p class="lead">وصلت إلى السؤال ${S.i+1} من ${S.list.length}، والصحيح حتى الآن ${S.score}.</p>
+    <div class="row"><button class="btn" id="cont">متابعة من حيث توقفت</button></div>
+  </div>`:""}
+  <div class="card">
+    <h1>${resume?"أو ابدأ اختبارًا جديدًا":"اختبر نفسك قبل الميد"}</h1>
+    <p class="lead">${Q.length} سؤال من المحاضرات الخمس، مع تفسير لكل إجابة. الأسئلة والخيارات تُخلط في كل مرة، وتقدّمك يُحفظ تلقائيًا.</p>
     <span class="label">المحاضرات</span>
     <div class="chips" id="lects">
       ${[1,2,3,4,5].map(n=>`<button class="chip" type="button" data-l="${n}" aria-pressed="${sel.has(n)}">${n}. ${LECT[n]}</button>`).join("")}
@@ -299,24 +320,27 @@ function home(){
     <div class="chips" id="cnt">
       ${["20","40","all"].map(c=>`<button class="chip" type="button" data-c="${c}" aria-pressed="${count===c}">${c==="all"?"الكل":c}</button>`).join("")}
     </div>
-    <div class="row"><button class="btn" id="go" ${pool?"":"disabled"}>ابدأ الاختبار</button></div>
-    <div class="stat">متاح: ${pool} سؤال</div>
+    <div class="row"><button class="btn${resume?" ghost":""}" id="go" ${pool?"":"disabled"}>ابدأ اختبارًا جديدًا</button></div>
+    <div class="stat">متاح: ${pool} سؤال${resume?" · بدء اختبار جديد يستبدل الاختبار غير المكتمل":""}</div>
   </div>`;
-  app.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{const n=+b.dataset.l;sel.has(n)?sel.delete(n):sel.add(n);home();});
-  app.querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>{count=b.dataset.c;home();});
-  document.getElementById("go").onclick=()=>start(Q.filter(x=>sel.has(x[0])));
+  app.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{const n=+b.dataset.l;sel.has(n)?sel.delete(n):sel.add(n);save();home();});
+  app.querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>{count=b.dataset.c;save();home();});
+  document.getElementById("go").onclick=()=>start(Q.filter(x=>sel.has(x[0])),count);
+  const c=document.getElementById("cont"); if(c) c.onclick=render;
+  window.scrollTo(0,0);
 }
 
-function start(raws){
+function start(raws,limit){
   let list=shuffle(raws);
-  if(count!=="all") list=list.slice(0,+count);
-  S={list:list.map(prep),raws:list,i:0,score:0,wrong:[],done:false};
+  if(limit!=="all") list=list.slice(0,+limit);
+  S={list:list.map(prep),raws:list,i:0,score:0,wrong:[],done:false,answered:false,pick:null};
+  save();
   render();
 }
 
 function render(){
   const q=S.list[S.i], n=S.list.length;
-  app.innerHTML=`<div class="top"><span>السؤال ${S.i+1} من ${n}</span><span>الصحيح: ${S.score}</span></div>
+  app.innerHTML=`<div class="top"><span>السؤال ${S.i+1} من ${n} · الصحيح: ${S.score}</span><button class="link" type="button" id="menu">القائمة</button></div>
   <div class="bar"><i style="width:${(S.i/n)*100}%"></i></div>
   <div class="card">
     <span class="tag">المحاضرة ${q.l} · ${LECT[q.l]}</span>
@@ -325,23 +349,38 @@ function render(){
     <div id="fb"></div>
     <div class="row" id="nav" hidden><button class="btn" id="next">${S.i+1<n?"السؤال التالي":"عرض النتيجة"}</button></div>
   </div>
-  <p class="hint">اختصارات: 1–4 للاختيار، Enter للتالي</p>`;
+  <p class="hint">تقدّمك يُحفظ تلقائيًا · اختصارات: 1–4 للاختيار، Enter للتالي</p>`;
   app.querySelectorAll(".opt").forEach(b=>b.onclick=()=>answer(+b.dataset.i));
   document.getElementById("next").onclick=next;
-  S.answered=false;
+  document.getElementById("menu").onclick=home;
+  if(S.answered&&S.pick!==null) paint(S.pick);
+  window.scrollTo(0,0);
 }
 
 function answer(i){
-  if(S.answered) return; S.answered=true;
+  if(S.answered) return;
   const q=S.list[S.i], ok=i===q.a;
+  S.answered=true; S.pick=i;
   if(ok) S.score++; else S.wrong.push({q,raw:S.raws[S.i],pick:i});
+  save();
+  paint(i);
+  document.querySelector(".top span").textContent=`السؤال ${S.i+1} من ${S.list.length} · الصحيح: ${S.score}`;
+}
+
+function paint(i){
+  const q=S.list[S.i], ok=i===q.a;
   app.querySelectorAll(".opt").forEach((b,k)=>{b.disabled=true;if(k===q.a)b.classList.add("ok");else if(k===i)b.classList.add("bad");});
   document.getElementById("fb").innerHTML=`<div class="exp ${ok?"ok":"bad"}"><b>${ok?"إجابة صحيحة ✓":"إجابة خاطئة ✗ — الصحيح: "+esc(q.o[q.a])}</b>${esc(q.e)}</div>`;
   document.getElementById("nav").hidden=false;
-  document.getElementById("next").focus();
+  document.getElementById("next").focus({preventScroll:true});
 }
 
-function next(){ if(!S.answered) return; S.i++; S.i<S.list.length?render():result(); }
+function next(){
+  if(!S.answered) return;
+  S.i++; S.answered=false; S.pick=null;
+  if(S.i<S.list.length){save();render();}
+  else{S.done=true;save();result();}
+}
 
 function result(){
   const n=S.list.length, pct=Math.round(S.score/n*100);
@@ -355,14 +394,14 @@ function result(){
     </div>
     ${S.wrong.length?`<div class="review"><span class="label">مراجعة الأخطاء</span>${S.wrong.map(w=>`<div class="rv"><div class="rq">${esc(w.q.q)}</div><div class="ra">✓ ${esc(w.q.o[w.q.a])}</div><div class="re">${esc(w.q.e)}</div></div>`).join("")}</div>`:""}
   </div>`;
-  const r=document.getElementById("retry"); if(r) r.onclick=()=>{const c=count;count="all";start(S.wrong.map(w=>w.raw));count=c;};
+  const r=document.getElementById("retry"); if(r) r.onclick=()=>start(S.wrong.map(w=>w.raw),"all");
   document.getElementById("again").onclick=home;
   window.scrollTo(0,0);
 }
 
 document.addEventListener("keydown",e=>{
   if(!S||!app.querySelector(".opt")) return;
-  if(/^[1-4]$/.test(e.key)){const b=app.querySelector(`.opt[data-i="${+e.key-1}"]`);if(b)b.click();}
+  if(/^[1-4]$/.test(e.key)){const b=app.querySelector(`.opt[data-i="${+e.key-1}"]`);if(b&&!b.disabled)b.click();}
   if(e.key==="Enter"&&S.answered){e.preventDefault();next();}
 });
 
@@ -374,7 +413,10 @@ document.getElementById("theme").onclick=()=>{
 };
 try{const t=localStorage.getItem("theme");if(t)root.dataset.theme=t;}catch(e){}
 
-home();
+load();
+if(S&&!S.done) render();
+else if(S&&S.done) result();
+else home();
 </script>
 </body>
 </html>
