@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>مراجعة Nodal و Mesh</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="ملخص واختبار تفاعلي: تحليل العقد مع مصادر الجهد (Supernode) وتحليل الشبكات (Mesh Analysis) — الفصل 3">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@500;700&family=Readex+Pro:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}
+/* Layout: engineering computation pad — faint grid paper, one reading column, copper "wire" accent for the live path */
+:root{
+  --paper:#ECF0E8; --grid:#DCE3D6; --card:#F7F9F3; --ink:#1C2A30; --muted:#5A6964;
+  --line:#C9D2C3; --copper:#AD4A22; --copper-soft:#F3DED2;
+  --ok:#2A7448; --ok-soft:#D8ECDD; --bad:#A8281F; --bad-soft:#F5DAD6;
+  --f-display:"Reem Kufi","Readex Pro",system-ui,sans-serif;
+  --f-body:"Readex Pro","Segoe UI",Tahoma,system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#121815; --grid:#1B231F; --card:#18201C; --ink:#E2E9DE; --muted:#93A29A;
+  --line:#2C3832; --copper:#E3895B; --copper-soft:#3A2519;
+  --ok:#6CC08C; --ok-soft:#173023; --bad:#EE8278; --bad-soft:#3A1C19; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#121815; --grid:#1B231F; --card:#18201C; --ink:#E2E9DE; --muted:#93A29A;
+  --line:#2C3832; --copper:#E3895B; --copper-soft:#3A2519;
+  --ok:#6CC08C; --ok-soft:#173023; --bad:#EE8278; --bad-soft:#3A1C19; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{
+  background-color:var(--paper);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:22px 22px;
+  color:var(--ink); font-family:var(--f-body); font-size:16px; line-height:1.85;
+  padding-left:max(16px,env(safe-area-inset-left,0px)); padding-right:max(16px,env(safe-area-inset-right,0px));
+}
+.wrap{max-width:780px;margin:0 auto;padding-block:28px 64px}
+header{display:grid;gap:6px;padding-bottom:18px;border-bottom:2px solid var(--ink)}
+.eyebrow{font-size:13px;color:var(--muted);letter-spacing:.02em}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(28px,6vw,40px);line-height:1.25;margin:0;text-wrap:balance}
+h1 .en{font-family:var(--f-mono);font-size:.5em;color:var(--copper);display:block;letter-spacing:.04em;font-weight:600}
+.tabs{display:flex;gap:4px;margin:18px 0 26px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:4px;width:max-content;max-width:100%}
+.tab{font:inherit;font-size:15px;font-weight:500;border:0;background:transparent;color:var(--muted);padding:8px 22px;border-radius:7px;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--paper)}
+.tab:focus-visible,button:focus-visible{outline:2px solid var(--copper);outline-offset:2px}
+
+/* ---------- Summary ---------- */
+section.sec{display:grid;gap:12px;padding-block:22px;border-bottom:1px dashed var(--line)}
+section.sec:last-child{border-bottom:0}
+h2{font-family:var(--f-display);font-weight:500;font-size:24px;margin:0;line-height:1.4;text-wrap:balance;display:flex;gap:10px;align-items:baseline}
+h2 .tag{font-family:var(--f-mono);font-size:12px;color:var(--copper);border:1px solid var(--copper);border-radius:4px;padding:0 6px;font-weight:600;letter-spacing:.03em}
+h3{font-size:17px;font-weight:600;margin:6px 0 0}
+p{margin:0;max-width:65ch}
+ul,ol{margin:0;padding-inline-start:22px;display:grid;gap:4px}
+.en{direction:ltr;unicode-bidi:isolate;font-style:normal}
+i.en,em.en{font-family:var(--f-mono);font-size:.88em;color:var(--copper)}
+.eq{direction:ltr;text-align:left;font-family:var(--f-mono);font-size:14.5px;line-height:1.9;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 14px;overflow-x:auto;white-space:pre}
+.eq b{color:var(--copper);font-weight:600}
+.rule{background:var(--copper-soft);border-radius:8px;padding:12px 16px;display:grid;gap:4px}
+.rule strong{font-weight:600}
+.warn{border:1px solid var(--bad);border-radius:8px;padding:10px 14px;font-size:15px}
+.warn strong{color:var(--bad)}
+.cmp{width:100%;border-collapse:collapse;font-size:15px}
+.cmp th,.cmp td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:right;vertical-align:top}
+.cmp th{font-weight:600;color:var(--muted);font-size:13px}
+.tbl{overflow-x:auto}
+.fig{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;display:grid;gap:4px;justify-items:center}
+.fig figcaption{font-size:13px;color:var(--muted)}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;align-items:start}
+.two>*{min-width:0}
+.ans{font-family:var(--f-mono);direction:ltr;unicode-bidi:isolate;background:var(--ok-soft);color:var(--ok);padding:1px 8px;border-radius:4px;font-weight:600;white-space:nowrap}
+
+/* ---------- Circuit SVG ---------- */
+svg.ckt{direction:ltr;unicode-bidi:isolate;width:100%;max-width:400px;height:auto;overflow:visible}
+svg.ckt .w{stroke:var(--ink);stroke-width:1.6;fill:none;stroke-linecap:round;stroke-linejoin:round}
+svg.ckt .src{stroke:var(--ink);stroke-width:1.6;fill:var(--card)}
+svg.ckt .dot{fill:var(--ink)}
+svg.ckt text{fill:var(--ink);font-family:var(--f-mono);font-size:12px}
+svg.ckt text.lbl{fill:var(--muted);font-size:11.5px}
+svg.ckt text.pm{font-size:12px;font-weight:600}
+svg.ckt text.node{fill:var(--copper);font-weight:600}
+svg.ckt text.mesh{fill:var(--copper);font-size:13px}
+svg.ckt .cur{stroke:var(--copper);stroke-width:1.6;fill:none}
+svg.ckt .sn{stroke:var(--copper);stroke-width:1.3;stroke-dasharray:5 4;fill:none}
+
+/* ---------- Quiz ---------- */
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.chip{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:5px 14px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{border-color:var(--copper);background:var(--copper-soft);color:var(--copper);font-weight:500}
+.track{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:16px;direction:rtl}
+.pip{width:22px;height:22px;border-radius:5px;border:1px solid var(--line);background:var(--card);font:600 10.5px var(--f-mono);color:var(--muted);cursor:pointer;padding:0;display:grid;place-items:center}
+.pip.cur{border-color:var(--ink);color:var(--ink)}
+.pip.ok{background:var(--ok);border-color:var(--ok);color:var(--card)}
+.pip.no{background:var(--bad);border-color:var(--bad);color:var(--card)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;display:grid;gap:16px}
+.qmeta{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:13px;color:var(--muted)}
+.qmeta .score{font-family:var(--f-mono);direction:ltr}
+.qtext{font-size:18px;font-weight:500;line-height:1.75;margin:0}
+.opts{display:grid;gap:8px}
+.opt{font:inherit;font-size:16px;text-align:right;display:flex;gap:12px;align-items:flex-start;padding:11px 14px;border:1.5px solid var(--line);border-radius:9px;background:var(--paper);color:var(--ink);cursor:pointer;line-height:1.6}
+.opt:hover:not(:disabled){border-color:var(--ink)}
+.opt .k{font:600 12px var(--f-mono);border:1px solid var(--line);border-radius:4px;min-width:22px;height:22px;display:grid;place-items:center;margin-top:2px;color:var(--muted);flex:none}
+.opt .t{min-width:0}
+.opt:disabled{cursor:default}
+.opt.right{border-color:var(--ok);background:var(--ok-soft)}
+.opt.right .k{background:var(--ok);color:var(--card);border-color:var(--ok)}
+.opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.opt.wrong .k{background:var(--bad);color:var(--card);border-color:var(--bad)}
+.opt.dim{opacity:.55}
+.fb{border-radius:9px;padding:12px 16px;display:grid;gap:6px;font-size:15px}
+.fb.ok{background:var(--ok-soft)} .fb.no{background:var(--bad-soft)}
+.fb .v{font-weight:600} .fb.ok .v{color:var(--ok)} .fb.no .v{color:var(--bad)}
+.nav{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.btn{font:inherit;font-size:15px;font-weight:500;padding:9px 20px;border-radius:8px;border:1.5px solid var(--ink);background:transparent;color:var(--ink);cursor:pointer}
+.btn.primary{background:var(--ink);color:var(--paper)}
+.btn:disabled{opacity:.35;cursor:default}
+.hint{font-size:12.5px;color:var(--muted);text-align:center;margin-top:10px}
+.res{display:grid;gap:16px;text-align:center;justify-items:center}
+.big{font-family:var(--f-mono);font-size:56px;font-weight:600;line-height:1;direction:ltr}
+.big small{font-size:22px;color:var(--muted)}
+.bars{display:grid;gap:8px;width:100%;max-width:420px}
+.bar{display:grid;grid-template-columns:110px 1fr 54px;gap:10px;align-items:center;font-size:14px;text-align:right}
+.bar .b{height:8px;background:var(--line);border-radius:4px;overflow:hidden}
+.bar .b i{display:block;height:100%;background:var(--copper)}
+.bar .n{font-family:var(--f-mono);direction:ltr;font-size:13px}
+footer{margin-top:40px;font-size:13px;color:var(--muted);text-align:center}
+@media (max-width:480px){.card{padding:16px}.qtext{font-size:17px}.tab{padding:8px 16px}}
+@media (prefers-reduced-motion:no-preference){.opt,.chip,.pip{transition:background-color .15s,border-color .15s}}
+</style>
+
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--copper)"/></marker>
+    <marker id="ahk" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--ink)"/></marker>
+  </defs>
+</svg>
+
+<div class="wrap" dir="rtl" lang="ar">
+  <header>
+    <span class="eyebrow">الدوائر الكهربائية · الفصل 3 · المحاضرة 7</span>
+    <h1>تحليل العُقد والشبكات<span class="en">SUPERNODE · MESH ANALYSIS</span></h1>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="t-sum" aria-controls="sum" aria-selected="true">الملخص</button>
+    <button class="tab" role="tab" id="t-quiz" aria-controls="quiz" aria-selected="false">الاختبار</button>
+  </div>
+
+  <!-- ======================= SUMMARY ======================= -->
+  <main id="sum" role="tabpanel" aria-labelledby="t-sum">
+
+    <section class="sec">
+      <h2>الصورة الكاملة</h2>
+      <div class="tbl"><table class="cmp">
+        <tr><th></th><th>تحليل العُقد <span class="en">Nodal</span></th><th>تحليل الشبكات <span class="en">Mesh</span></th></tr>
+        <tr><td>القانون</td><td><span class="en">KCL</span></td><td><span class="en">KVL</span></td></tr>
+        <tr><td>المجاهيل</td><td>جهود العُقد <span class="en">v₁, v₂…</span></td><td>تيارات الشبكات <span class="en">i₁, i₂…</span></td></tr>
+        <tr><td>يصلح لـ</td><td>أي دائرة</td><td>الدوائر المستوية <span class="en">planar</span> فقط</td></tr>
+        <tr><td>المشكلة الخاصة</td><td>مصدر الجهد (تياره مجهول)</td><td>مصدر التيار / المصدر التابع</td></tr>
+      </table></div>
+    </section>
+
+    <section class="sec">
+      <h2><span class="tag">3.4</span>تحليل العُقد مع مصادر الجهد</h2>
+      <h3>الحالة 1 — المصدر بين الأرضي وعقدة</h3>
+      <p>جهد العقدة = قيمة المصدر مباشرة. في الشكل 3.7: <span class="ans">v₁ = 10 V</span>. هذا يوفّر معادلة.</p>
+      <h3>الحالة 2 — المصدر بين عقدتين غير مرجعيتين ← <span class="en">Supernode</span></h3>
+      <p>نحيط المصدر وعقدتيه (وأي عنصر موصول معه على التوازي) بسطح مغلق. السبب: لا نعرف التيار المار في مصدر الجهد، فلا نستطيع كتابة <span class="en">KCL</span> عند كل عقدة لوحدها.</p>
+      <div class="rule">
+        <strong>طريقة الحل = معادلتان من الـ Supernode:</strong>
+        <span>١. <span class="en">KCL</span> على السطح كله: الداخل = الخارج (تيار المصدر لا يظهر لأنه داخل السطح).</span>
+        <span>٢. <span class="en">KVL</span> (معادلة القيد): <b class="en">v(+) − v(−) = V<sub>s</sub></b> — جهد عقدة طرف + ناقص جهد عقدة طرف −.</span>
+      </div>
+      <h3>خصائص الـ Supernode</h3>
+      <ol>
+        <li>مصدر الجهد بداخله يعطي معادلة القيد اللازمة للحل.</li>
+        <li>ليس له جهد خاص به.</li>
+        <li>يحتاج تطبيق <span class="en">KCL</span> و <span class="en">KVL</span> معًا.</li>
+      </ol>
+      <div class="two">
+        <figure class="fig" style="margin:0"><div data-fig="f37"></div><figcaption>الشكل 3.7 — الدائرة المنقّطة هي الـ Supernode</figcaption></figure>
+        <div style="display:grid;gap:8px">
+          <div class="eq">KCL:  i₁ + i₄ = i₂ + i₃
+(v₁−v₂)/2 + (v₁−v₃)/4 = v₂/8 + v₃/6
+
+KVL:  −v₂ + 5 + v₃ = 0
+      <b>v₂ − v₃ = 5</b></div>
+          <p style="font-size:14px;color:var(--muted)">بالتعويض (للتدريب، غير محلول في الشرائح): <span class="ans">v₂ = 9.2 V</span> <span class="ans">v₃ = 4.2 V</span></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2><span class="tag">Ex 3.3</span>إيجاد جهود العُقد</h2>
+      <div class="two">
+        <figure class="fig" style="margin:0"><div data-fig="f39"></div><figcaption>الشكل 3.9</figcaption></figure>
+        <div class="eq">KCL:  2 = v₁/2 + v₂/4 + 7
+×4 →  8 = 2v₁ + v₂ + 28
+      v₂ = −20 − 2v₁      (1)
+
+KVL:  −v₁ − 2 + v₂ = 0
+      v₂ = v₁ + 2          (2)
+
+(1)=(2):  3v₁ = −22
+      <b>v₁ = −7.333 V</b>
+      <b>v₂ = −5.333 V</b></div>
+      </div>
+      <p>الـ Supernode يضم المصدر 2 V والعقدتين والمقاومة 10 Ω. <strong>المقاومة 10 Ω لا تؤثر</strong> لأنها على التوازي مع المصدر داخل السطح.</p>
+    </section>
+
+    <section class="sec">
+      <h2><span class="tag">PP 3.3</span>واجب: أوجدي <span class="en">v</span> و <span class="en">i</span></h2>
+      <div class="two">
+        <figure class="fig" style="margin:0"><div data-fig="f311"></div><figcaption>الشكل 3.11</figcaption></figure>
+        <div class="eq">KVL:  v₂ − v₁ = 6  →  v₂ = v₁ + 6
+
+KCL:  (v₁−14)/4 + v₁/3 + v₂/2 + v₂/6 = 0
+×12:  3(v₁−14) + 4v₁ + 6v₂ + 2v₂ = 0
+      15v₁ + 6 = 0
+
+<b>v = v₁ = −0.4 V</b>
+v₂ = 5.6 V  →  <b>i = 5.6/2 = 2.8 A</b></div>
+      </div>
+      <p class="warn"><strong>انتبهي:</strong> في الحل المكتوب بخط اليد على الشريحة كُتب الناتج 2.6 A، والصحيح 5.6 ÷ 2 = <span class="ans">2.8 A</span> (وهي إجابة الكتاب).</p>
+    </section>
+
+    <section class="sec">
+      <h2><span class="tag">3.5</span>تحليل الشبكات <span class="en">Mesh Analysis</span></h2>
+      <ul>
+        <li><strong>Loop:</strong> مسار مغلق لا يمر بأي عقدة أكثر من مرة.</li>
+        <li><strong>Mesh:</strong> loop لا يحتوي بداخله على loop آخر. (في الشكل 3.17: <span class="en">abefa</span> و <span class="en">bcdeb</span> شبكتان، أما <span class="en">abcdefa</span> فـ loop فقط.)</li>
+        <li><strong>Planar:</strong> دائرة يمكن رسمها بلا تقاطع فروع. لو فيها تقاطع لكن يمكن إعادة رسمها بدونه فهي planar أيضًا (الشكل 3.15). أما الشكل 3.16 فهو <span class="en">nonplanar</span> ولا يُحل بالـ mesh.</li>
+        <li>الـ Mesh أقل عمومية من الـ Nodal لأنه يصلح للدوائر المستوية فقط.</li>
+      </ul>
+      <div class="rule">
+        <strong>الخطوات الثلاث:</strong>
+        <span>١. عيّني تيارًا لكل شبكة <span class="en">i₁…iₙ</span> (العرف: مع عقارب الساعة).</span>
+        <span>٢. طبّقي <span class="en">KVL</span> على كل شبكة، واكتبي الجهود بقانون أوم بدلالة تيارات الشبكات.</span>
+        <span>٣. حلّي المعادلات الآنية (تعويض أو كرامر).</span>
+      </div>
+      <h3>في الفرع المشترك</h3>
+      <p>المقاومة المشتركة بين شبكتين يمر فيها الفرق: الجهد عليها في معادلة الشبكة 1 = <span class="en">R(i₁ − i₂)</span>، وفي معادلة الشبكة 2 = <span class="en">R(i₂ − i₁)</span>.</p>
+      <div class="eq">Fig 3.17:
+Mesh 1:  −V₁ + R₁i₁ + R₃(i₁ − i₂) = 0  →  (R₁+R₃)i₁ − R₃i₂ = V₁
+Mesh 2:  R₂i₂ + V₂ + R₃(i₂ − i₁) = 0   →  −R₃i₁ + (R₂+R₃)i₂ = −V₂
+
+Branch currents:  I₁ = i₁   I₂ = i₂   <b>I₃ = i₁ − i₂</b></div>
+      <div class="rule">
+        <strong>الطريقة المختصرة (Shortcut):</strong>
+        <span>معامل تيار الشبكة نفسها = <b>مجموع</b> مقاوماتها. معامل تيار الشبكة المجاورة = <b>سالب</b> المقاومة المشتركة.</span>
+        <span>لا تصلح إذا افترضتِ شبكة مع عقارب الساعة وأخرى عكسها، ولا مع المصادر التابعة (اكتبي KVL كاملًا).</span>
+      </div>
+      <p>تيار الفرع <span class="en">I</span> يختلف عن تيار الشبكة <span class="en">i</span> إلا إذا كانت الشبكة معزولة (الفرع غير مشترك).</p>
+    </section>
+
+    <section class="sec">
+      <h2><span class="tag">Ex 3.5</span>تيارات الفروع</h2>
+      <div class="two">
+        <figure class="fig" style="margin:0"><div data-fig="f318"></div><figcaption>الشكل 3.18</figcaption></figure>
+        <div class="eq">M1: −15 + 5i₁ + 10(i₁−i₂) + 10 = 0
+    3i₁ − 2i₂ = 1
+M2: 6i₂ + 4i₂ + 10(i₂−i₁) − 10 = 0
+    i₁ = 2i₂ − 1
+
+→ <b>i₁ = i₂ = 1 A</b>
+<b>I₁ = 1 A   I₂ = 1 A   I₃ = 0</b></div>
+      </div>
+      <h3>قاعدة كرامر <span class="en">Cramer's rule</span></h3>
+      <div class="eq">[ 3  −2 ] [i₁]   [1]
+[−1   2 ] [i₂] = [1]
+
+Δ  = (3)(2) − (−2)(−1) = 4
+Δ₁ = |1 −2; 1 2| = 4      Δ₂ = |3 1; −1 1| = 4
+i₁ = Δ₁/Δ = 1 A           i₂ = Δ₂/Δ = 1 A</div>
+      <p>لمحدد 3×3 (طريقة ساروس): كرّري أول صفين أسفل المصفوفة، اجمعي حواصل الأقطار النازلة (+) واطرحي حواصل الأقطار الصاعدة (−). لإيجاد <span class="en">Δₖ</span> استبدلي العمود <span class="en">k</span> بعمود الثوابت.</p>
+    </section>
+
+    <section class="sec">
+      <h2><span class="tag">Ex 3.6</span>شبكة فيها مصدر تابع</h2>
+      <div class="two">
+        <figure class="fig" style="margin:0"><div data-fig="f320"></div><figcaption>الشكل 3.20</figcaption></figure>
+        <div class="eq">M1: −24 + 10(i₁−i₂) + 12(i₁−i₃) = 0
+    11i₁ − 5i₂ − 6i₃ = 12
+M2: 24i₂ + 4(i₂−i₃) + 10(i₂−i₁) = 0
+    −5i₁ + 19i₂ − 2i₃ = 0
+M3: 4Iₒ + 12(i₃−i₁) + 4(i₃−i₂) = 0
+    <b>Iₒ = i₁ − i₂</b>  (node A)
+    −i₁ − i₂ + 2i₃ = 0</div>
+      </div>
+      <div class="eq">Δ = 192   Δ₁ = 432   Δ₂ = 144   Δ₃ = 288
+i₁ = 2.25 A   i₂ = 0.75 A   i₃ = 1.5 A
+<b>Iₒ = i₁ − i₂ = 1.5 A</b></div>
+      <p>المفتاح: عبّري عن متغير التحكم (<span class="en">Iₒ</span>) بتيارات الشبكات ثم عوّضي، فلا يزيد عدد المجاهيل.</p>
+    </section>
+
+    <section class="sec">
+      <h2><span class="tag">PP 3.5 · 3.6</span>واجبات الشبكات</h2>
+      <div class="two">
+        <figure class="fig" style="margin:0"><div data-fig="f319"></div><figcaption>الشكل 3.19</figcaption></figure>
+        <div class="eq">M1: 2i₁ + 4i₁ + 12(i₁−i₂) − 45 = 0
+    18i₁ − 12i₂ = 45
+M2: 9i₂ + 3i₂ + 12(i₂−i₁) + 30 = 0
+    −12i₁ + 24i₂ = −30
+
+<b>i₁ = 2.5 A    i₂ = 0</b></div>
+      </div>
+      <div class="two">
+        <figure class="fig" style="margin:0"><div data-fig="f321"></div><figcaption>الشكل 3.21</figcaption></figure>
+        <div class="eq">Iₒ = i₃  (outer branch, mesh 3 only)
+M1: −16 + 4(i₁−i₃) + 2(i₁−i₂) = 0
+    6i₁ − 2i₂ − 4i₃ = 16
+M2: 2(i₂−i₁) + 8(i₂−i₃) − 10i₃ = 0
+    −2i₁ + 10i₂ − 18i₃ = 0
+M3: 6i₃ + 4(i₃−i₁) + 8(i₃−i₂) = 0
+    −4i₁ − 8i₂ + 18i₃ = 0
+
+<b>Iₒ = i₃ = −4 A</b></div>
+      </div>
+      <p style="font-size:14px;color:var(--muted)">في PP 3.6 الطرف (−) للمصدر التابع في الأعلى، فالشبكة 2 مع عقارب الساعة تصعد فيه (−10iₒ). و <span class="en">Iₒ</span> يمر في الفرع الخارجي الأيسر الذي لا يخص إلا الشبكة 3.</p>
+    </section>
+
+    <section class="sec">
+      <h2>أخطاء تتكرر في الكويز</h2>
+      <ul>
+        <li>كتابة تيار مصدر الجهد في معادلة KCL للـ Supernode.</li>
+        <li>عكس إشارة معادلة القيد. القاعدة: <span class="en">v(+) − v(−) = Vs</span>.</li>
+        <li>نسيان أن مصدر تيار خارج من الـ Supernode (مثل 7 A) يُكتب في جهة الخارج.</li>
+        <li>نسيان المقاومة على التوازي مع المصدر (لا تُكتب) أو إضافتها خطأً.</li>
+        <li>في الـ Mesh: إشارة المصدر حسب أول طرف يدخله التيار؛ من − إلى + = ارتفاع (−V)، ومن + إلى − = هبوط (+V).</li>
+        <li>الخلط بين تيار الفرع <span class="en">I</span> وتيار الشبكة <span class="en">i</span>.</li>
+      </ul>
+      <div class="nav" style="margin-top:6px"><span></span><button class="btn primary" id="goQuiz">ابدئي الاختبار ←</button></div>
+    </section>
+  </main>
+
+  <!-- ======================= QUIZ ======================= -->
+  <main id="quiz" role="tabpanel" aria-labelledby="t-quiz" hidden>
+    <div class="filters" id="filters">
+      <button class="chip" data-s="all" aria-pressed="true">كل الأسئلة</button>
+      <button class="chip" data-s="node" aria-pressed="false">العقد و Supernode</button>
+      <button class="chip" data-s="mesh" aria-pressed="false">الشبكات Mesh</button>
+    </div>
+    <div class="track" id="track"></div>
+    <div id="stage"></div>
+    <p class="hint">لوحة المفاتيح: 1–4 للاختيار · Enter للتالي</p>
+  </main>
+
+  <footer>مبني على شرائح المحاضرة 7 — الفصل 3 (Alexander &amp; Sadiku). عند أي اختلاف ارجعي لشرح المحاضرة.</footer>
+</div>
+
+<script>
+/* ===================== Circuit drawing helpers ===================== */
+function sg(x1,y1,x2,y2){const dx=x2-x1,dy=y2-y1,d=Math.hypot(dx,dy),ux=dx/d,uy=dy/d;return{ux,uy,px:-uy,py:ux,mx:(x1+x2)/2,my:(y1+y2)/2}}
+function lbl(g,s,t,off){off=off||18;const x=g.mx+g.px*off*s,y=g.my+g.py*off*s;let a='middle';if(Math.abs(g.px)>.5)a=(g.px*s<0)?'start':'end';return `<text class="lbl" x="${x}" y="${y+4}" text-anchor="${a}">${t}</text>`}
+const W=(x1,y1,x2,y2)=>`<line class="w" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+function R(x1,y1,x2,y2,t,s){const g=sg(x1,y1,x2,y2),h=18,ax=g.mx-g.ux*h,ay=g.my-g.uy*h,bx=g.mx+g.ux*h,by=g.my+g.uy*h;let p=`${ax},${ay}`;for(let k=1;k<=6;k++){const f=(k-.5)/6*2*h-h,sgn=k%2?1:-1;p+=` ${g.mx+g.ux*f+g.px*6*sgn},${g.my+g.uy*f+g.py*6*sgn}`}p+=` ${bx},${by}`;return W(x1,y1,ax,ay)+`<polyline class="w" points="${p}"/>`+W(bx,by,x2,y2)+lbl(g,s,t)}
+function pm(g,plusStart){const a=plusStart?-1:1;return `<text class="pm" x="${g.mx+g.ux*6*a}" y="${g.my+g.uy*6*a+4}" text-anchor="middle">+</text><text class="pm" x="${g.mx-g.ux*6*a}" y="${g.my-g.uy*6*a+4}" text-anchor="middle">−</text>`}
+function V(x1,y1,x2,y2,t,plusStart,s){const g=sg(x1,y1,x2,y2),r=13;return W(x1,y1,g.mx-g.ux*r,g.my-g.uy*r)+W(g.mx+g.ux*r,g.my+g.uy*r,x2,y2)+`<circle class="src" cx="${g.mx}" cy="${g.my}" r="${r}"/>`+pm(g,plusStart)+lbl(g,s,t,24)}
+function I(x1,y1,x2,y2,t,s){const g=sg(x1,y1,x2,y2),r=13;return W(x1,y1,g.mx-g.ux*r,g.my-g.uy*r)+W(g.mx+g.ux*r,g.my+g.uy*r,x2,y2)+`<circle class="src" cx="${g.mx}" cy="${g.my}" r="${r}"/><line class="w" x1="${g.mx-g.ux*7}" y1="${g.my-g.uy*7}" x2="${g.mx+g.ux*7}" y2="${g.my+g.uy*7}" marker-end="url(#ahk)"/>`+lbl(g,s,t,24)}
+function D(x1,y1,x2,y2,t,plusStart,s){const g=sg(x1,y1,x2,y2),r=15;const pts=[[g.mx-g.ux*r,g.my-g.uy*r],[g.mx+g.px*r,g.my+g.py*r],[g.mx+g.ux*r,g.my+g.uy*r],[g.mx-g.px*r,g.my-g.py*r]].map(p=>p.join(',')).join(' ');return W(x1,y1,g.mx-g.ux*r,g.my-g.uy*r)+W(g.mx+g.ux*r,g.my+g.uy*r,x2,y2)+`<polygon class="src" points="${pts}"/>`+pm(g,plusStart)+lbl(g,s,t,26)}
+const G=(x,y)=>W(x,y,x,y+10)+W(x-10,y+10,x+10,y+10)+W(x-6,y+14,x+6,y+14)+W(x-2,y+18,x+2,y+18);
+const N=(x,y)=>`<circle class="dot" cx="${x}" cy="${y}" r="3.2"/>`;
+const T=(x,y,t,c,a)=>`<text class="${c||''}" x="${x}" y="${y}" text-anchor="${a||'middle'}">${t}</text>`;
+const A=(x1,y1,x2,y2)=>`<line class="cur" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" marker-end="url(#ah)"/>`;
+const svg=(vb,parts)=>`<svg class="ckt" dir="ltr" viewBox="${vb}" role="img">${parts.join('')}</svg>`;
+
+const FIGS={
+ f37:svg("-10 10 360 215",[
+   W(60,30,60,90),R(60,30,290,30,'4 Ω',-1),W(290,30,290,90),
+   V(60,90,60,190,'10 V',true,1),R(60,90,170,90,'2 Ω',-1),V(170,90,290,90,'5 V',true,1),
+   R(170,90,170,190,'8 Ω',-1),R(290,90,290,190,'6 Ω',-1),W(60,190,290,190),G(175,190),
+   `<ellipse class="sn" cx="230" cy="92" rx="78" ry="24"/>`,
+   N(60,90),N(170,90),N(290,90),T(64,80,'v₁','node','start'),T(176,80,'v₂','node','start'),T(296,80,'v₃','node','start')]),
+ f39:svg("-20 20 410 200",[
+   W(50,90,130,90),I(50,190,50,90,'2 A',-1),R(130,90,130,190,'2 Ω',-1),V(130,90,250,90,'2 V',false,1),
+   W(130,90,130,40),R(130,40,250,40,'10 Ω',-1),W(250,40,250,90),R(250,90,250,190,'4 Ω',1),
+   W(250,90,330,90),I(330,90,330,190,'7 A',-1),W(50,190,330,190),G(190,190),
+   N(130,90),N(250,90),T(124,82,'v₁','node','end'),T(256,82,'v₂','node','start')]),
+ f311:svg("-15 45 385 175",[
+   V(40,70,40,180,'14 V',true,1),R(40,70,130,70,'4 Ω',-1),V(130,70,240,70,'6 V',false,-1),
+   R(130,70,130,180,'3 Ω',1),T(150,108,'+','pm'),T(150,128,'v'),T(150,150,'−','pm'),
+   R(240,70,240,180,'2 Ω',1),A(254,94,254,116),T(262,110,'i','node','start'),
+   W(240,70,320,70),R(320,70,320,180,'6 Ω',-1),W(40,180,320,180),G(180,180),
+   N(130,70),N(240,70),T(134,62,'v₁','node','start'),T(244,62,'v₂','node','start')]),
+ f318:svg("-20 15 380 205",[
+   V(40,40,40,200,'15 V',true,1),R(40,40,170,40,'5 Ω',-1),R(170,40,300,40,'6 Ω',-1),
+   R(170,40,170,120,'10 Ω',-1),V(170,120,170,200,'10 V',true,-1),R(300,40,300,200,'4 Ω',-1),
+   W(40,200,300,200),N(170,40),A(158,52,158,72),T(150,66,'I₃','node','end'),
+   T(105,128,'↻ i₁','mesh'),T(240,128,'↻ i₂','mesh')]),
+ f319:svg("-20 15 380 200",[
+   V(40,40,40,190,'45 V',true,1),R(40,40,170,40,'2 Ω',-1),R(170,40,300,40,'9 Ω',-1),
+   R(170,40,170,190,'12 Ω',-1),R(40,190,170,190,'4 Ω',1),R(170,190,300,190,'3 Ω',1),
+   V(300,40,300,190,'30 V',true,-1),T(100,120,'↻ i₁','mesh'),T(245,120,'↻ i₂','mesh')]),
+ f320:svg("-20 5 380 230",[
+   V(40,30,40,210,'24 V',true,1),W(40,30,300,30),R(170,30,170,120,'10 Ω',1),R(170,120,170,210,'12 Ω',1),
+   R(300,30,300,120,'24 Ω',-1),R(170,120,300,120,'4 Ω',-1),D(300,120,300,210,'4Iₒ',true,-1),W(40,210,300,210),
+   N(170,30),T(170,22,'A','node'),A(184,40,184,60),T(190,56,'Iₒ','node','start'),
+   T(100,125,'↻ i₁','mesh'),T(240,80,'↻ i₂','mesh'),T(240,172,'↻ i₃','mesh')]),
+ f321:svg("-25 10 385 225",[
+   W(40,30,40,110),A(26,92,26,56),T(18,80,'Iₒ','node','end'),R(40,30,300,30,'6 Ω',-1),W(300,30,300,110),
+   R(40,110,170,110,'4 Ω',-1),R(170,110,300,110,'8 Ω',-1),V(40,110,40,210,'16 V',true,1),
+   R(170,110,170,210,'2 Ω',-1),D(300,110,300,210,'10iₒ',false,-1),W(40,210,300,210),
+   T(170,76,'↻ i₃','mesh'),T(100,170,'↻ i₁','mesh'),T(245,170,'↻ i₂','mesh')])
+};
+document.querySelectorAll('[data-fig]').forEach(el=>el.innerHTML=FIGS[el.dataset.fig]);
+
+/* ===================== Questions ===================== */
+const e=s=>`<span class="en">${s}</span>`;
+const Q=[
+{s:'node',q:`مصدر جهد متصل بين العقدة المرجعية (Ground) وعقدة غير مرجعية. ماذا نفعل في تحليل العقد؟`,
+ o:['نجعل جهد العقدة يساوي قيمة المصدر مباشرة','نكوّن Supernode حول المصدر','نكتب KCL عند العقدة ونهمل المصدر','نحوّل المصدر إلى مصدر تيار'],
+ x:`هذه الحالة الأولى: جهد العقدة معروف مباشرة، مثل ${e('v₁ = 10 V')} في الشكل 3.7، فتقل المجاهيل بواحد.`},
+{s:'node',q:`متى يتكوّن الـ Supernode؟`,
+ o:['عندما يتصل مصدر جهد (مستقل أو تابع) بين عقدتين غير مرجعيتين','عندما يتصل مصدر تيار بين عقدتين غير مرجعيتين','عندما يتصل مصدر جهد بين عقدة والأرضي','عندما توجد مقاومتان على التوازي'],
+ x:`الـ Supernode = السطح المغلق حول مصدر الجهد وعقدتيه، ويشمل أي عنصر موصول معه على التوازي.`},
+{s:'node',q:`لماذا لا نكتب KCL عند كل عقدة من عقدتي مصدر الجهد بشكل منفصل؟`,
+ o:['لأن التيار المار في مصدر الجهد غير معروف مسبقًا','لأن جهد المصدر يساوي صفرًا','لأن KCL لا ينطبق على العقد التي فيها مصادر','لأن المقاومات المتصلة بالمصدر تُهمل دائمًا'],
+ x:`KCL يحتاج تيار كل عنصر، ومصدر الجهد لا يمكن التعبير عن تياره بقانون أوم. لذلك نحيطه بسطح ونطبّق KCL على السطح كله.`},
+{s:'node',q:`أي العبارات التالية <strong>ليست</strong> من خصائص الـ Supernode؟`,
+ o:['له جهد خاص به نحسبه كمجهول إضافي','مصدر الجهد بداخله يعطي معادلة قيد','يحتاج تطبيق KCL و KVL معًا','يتحقق عليه KCL كأي عقدة عادية'],
+ x:`الـ Supernode ليس له جهد خاص؛ المجاهيل هي جهود العقدتين اللتين يضمهما.`},
+{s:'node',fig:'f37',q:`في الشكل 3.7، ما معادلة القيد (KVL) التي يعطيها المصدر 5 V؟`,
+ o:[e('v₂ − v₃ = 5'),e('v₃ − v₂ = 5'),e('v₂ + v₃ = 5'),e('v₁ − v₂ = 5')],
+ x:`طرف + عند ${e('v₂')} وطرف − عند ${e('v₃')}. القاعدة: ${e('v(+) − v(−) = Vs')}. ومن KVL مع عقارب الساعة: ${e('−v₂ + 5 + v₃ = 0')}.`},
+{s:'node',fig:'f37',q:`في الشكل 3.7، ما معادلة KCL الصحيحة على الـ Supernode؟`,
+ o:[e('(v₁−v₂)/2 + (v₁−v₃)/4 = v₂/8 + v₃/6'),e('(v₁−v₂)/2 = v₂/8 + v₃/6'),e('(v₁−v₂)/2 + (v₁−v₃)/4 + (v₂−v₃)/5 = v₂/8 + v₃/6'),e('(v₂−v₁)/2 + (v₃−v₁)/4 = v₂/8 + v₃/6')],
+ x:`الداخل (${e('i₁')} عبر 2 Ω و ${e('i₄')} عبر 4 Ω) = الخارج (${e('i₂')} عبر 8 Ω و ${e('i₃')} عبر 6 Ω). المصدر ليس مقاومة، ولا يُكتب تياره لأنه داخل السطح.`},
+{s:'node',fig:'f37',q:`في الشكل 3.7 مع ${e('v₁ = 10 V')}، احسبي ${e('v₂')}.`,
+ o:[e('9.2 V'),e('4.2 V'),e('5 V'),e('7.5 V')],
+ x:`اضربي KCL في 24: ${e('12(10−v₂) + 6(10−v₃) = 3v₂ + 4v₃ ⇒ 15v₂ + 10v₃ = 180')}. عوّضي ${e('v₃ = v₂ − 5')}: ${e('25v₂ = 230 ⇒ v₂ = 9.2 V')} و ${e('v₃ = 4.2 V')}. (سؤال تدريبي، غير محلول في الشرائح.)`},
+{s:'node',fig:'f39',q:`في المثال 3.3، ما تأثير المقاومة 10 Ω على جهود العقد؟`,
+ o:['لا تأثير؛ لأنها على التوازي مع المصدر داخل الـ Supernode','تُضاف كحد (v₁ − v₂)/10 في معادلة KCL','تقلل v₁ إلى النصف','تجعل الدائرة غير قابلة للحل بالعقد'],
+ x:`تيارها يخرج من السطح ويعود إليه، فلا يظهر في KCL، وجهدها محدد بالمصدر (2 V).`},
+{s:'node',fig:'f39',q:`في المثال 3.3، معادلة KCL على الـ Supernode بعد التبسيط هي:`,
+ o:[e('v₂ = −20 − 2v₁'),e('v₂ = 20 − 2v₁'),e('v₂ = −20 + 2v₁'),e('2v₁ + v₂ = 20')],
+ x:`${e('2 = v₁/2 + v₂/4 + 7')} ثم ×4: ${e('8 = 2v₁ + v₂ + 28')} ⇒ ${e('v₂ = −20 − 2v₁')}. المصدر 7 A تياره خارج من الـ Supernode فيُكتب في جهة الخارج.`},
+{s:'node',fig:'f39',q:`احسبي ${e('v₁')} و ${e('v₂')} في المثال 3.3.`,
+ o:[e('v₁ = −7.333 V ، v₂ = −5.333 V'),e('v₁ = 7.333 V ، v₂ = 9.333 V'),e('v₁ = −5.333 V ، v₂ = −7.333 V'),e('v₁ = −6 V ، v₂ = −4 V')],
+ x:`KVL: ${e('v₂ = v₁ + 2')}. نساوي: ${e('v₁ + 2 = −20 − 2v₁ ⇒ 3v₁ = −22 ⇒ v₁ = −7.333 V')}، ثم ${e('v₂ = −5.333 V')}.`},
+{s:'node',fig:'f311',q:`في التمرين 3.3 (الشكل 3.11)، ما قيمة ${e('v')} على المقاومة 3 Ω؟`,
+ o:[e('−0.4 V'),e('0.4 V'),e('5.6 V'),e('−5.6 V')],
+ x:`القيد: ${e('v₂ = v₁ + 6')}. KCL: ${e('(v₁−14)/4 + v₁/3 + v₂/2 + v₂/6 = 0')}. ×12 مع التعويض: ${e('15v₁ + 6 = 0 ⇒ v₁ = −0.4 V = v')}.`},
+{s:'node',fig:'f311',q:`في التمرين 3.3، ما قيمة التيار ${e('i')} في المقاومة 2 Ω؟`,
+ o:[e('2.8 A'),e('2.6 A'),e('0.2 A'),e('3 A')],
+ x:`${e('v₂ = −0.4 + 6 = 5.6 V')} ⇒ ${e('i = 5.6/2 = 2.8 A')}. (الحل المكتوب بخط اليد على الشريحة فيه خطأ حسابي: 2.6.)`},
+
+{s:'mesh',q:`ما تعريف الـ Mesh؟`,
+ o:['حلقة (loop) لا تحتوي بداخلها على أي حلقة أخرى','أي مسار مغلق في الدائرة','مسار مغلق يمر بعقدة أكثر من مرة','حلقة تحتوي على مصدر جهد واحد على الأقل'],
+ x:`كل mesh هي loop، وليس العكس. في الشكل 3.17: ${e('abefa')} و ${e('bcdeb')} شبكتان، أما ${e('abcdefa')} فـ loop فقط.`},
+{s:'mesh',q:`تحليل الشبكات (Mesh Analysis) يُطبَّق فقط على:`,
+ o:['الدوائر المستوية (planar)','الدوائر غير المستوية (nonplanar)','الدوائر التي لا تحتوي مصادر تابعة','الدوائر ذات المصدر الواحد'],
+ x:`لهذا يُعد أقل عمومية من تحليل العقد الذي يصلح لأي دائرة.`},
+{s:'mesh',q:`دائرة رسمها فيه فروع متقاطعة. هل يمكن تحليلها بالـ Mesh؟`,
+ o:['نعم، إذا أمكن إعادة رسمها بلا تقاطع','لا، أي تقاطع يجعلها nonplanar','نعم دائمًا، التقاطع لا يهم','فقط إذا كان التقاطع عند عقدة'],
+ x:`الشكل 3.15 فيه تقاطع، لكن أُعيد رسمه بدونه فهو planar. الشكل 3.16 لا يمكن فكه، فهو nonplanar.`},
+{s:'mesh',q:`أي مقارنة صحيحة؟`,
+ o:['Nodal: KCL لإيجاد الجهود — Mesh: KVL لإيجاد التيارات','Nodal: KVL لإيجاد التيارات — Mesh: KCL لإيجاد الجهود','كلاهما يستخدم KCL فقط','Nodal: KCL لإيجاد التيارات — Mesh: KVL لإيجاد الجهود'],
+ x:`العقد ← KCL ← جهود. الشبكات ← KVL ← تيارات.`},
+{s:'mesh',q:`في الشكل 3.17 (شبكتان، ${e('i₁')} و ${e('i₂')} مع عقارب الساعة، و ${e('R₃')} مشتركة)، تيار الفرع ${e('I₃')} في ${e('R₃')} للأسفل يساوي:`,
+ o:[e('i₁ − i₂'),e('i₁ + i₂'),e('i₂ − i₁'),e('i₁')],
+ x:`في الفرع المشترك ينزل ${e('i₁')} ويصعد ${e('i₂')}، فالمحصلة ${e('i₁ − i₂')}. أما الفروع غير المشتركة: ${e('I₁ = i₁')} و ${e('I₂ = i₂')}.`},
+{s:'mesh',q:`بالطريقة المختصرة لمعادلة الشبكة 1 في الشكل 3.17، معامل ${e('i₁')} ومعامل ${e('i₂')} هما:`,
+ o:[e('R₁ + R₃ ، −R₃'),e('R₁ ، −R₃'),e('R₁ + R₃ ، +R₃'),e('R₁ + R₂ + R₃ ، −R₂')],
+ x:`معامل تيار الشبكة = مجموع مقاوماتها، ومعامل الشبكة المجاورة = سالب المقاومة المشتركة: ${e('(R₁+R₃)i₁ − R₃i₂ = V₁')}.`},
+{s:'mesh',q:`متى لا تصلح الطريقة المختصرة لكتابة معادلات الشبكات؟`,
+ o:['إذا افترضنا تيار شبكة مع عقارب الساعة وآخر عكسها','إذا كانت الدائرة فيها أكثر من شبكتين','إذا كانت المقاومات غير متساوية','إذا كان في الدائرة مصدرا جهد'],
+ x:`الافتراض المختلط مسموح، لكنه يكسر قاعدة الإشارة السالبة للمقاومة المشتركة. ومع المصادر التابعة اكتبي KVL كاملًا كما في المثال 3.6.`},
+{s:'mesh',fig:'f318',q:`في المثال 3.5، معادلة الشبكة 1 بعد التبسيط:`,
+ o:[e('3i₁ − 2i₂ = 1'),e('3i₁ − 2i₂ = 5'),e('15i₁ − 10i₂ = 15'),e('−i₁ + 2i₂ = 1')],
+ x:`${e('−15 + 5i₁ + 10(i₁−i₂) + 10 = 0 ⇒ 15i₁ − 10i₂ = 5')} ثم ÷5. التيار ${e('i₁')} يدخل المصدر 10 V من طرف + فيُكتب ${e('+10')}.`},
+{s:'mesh',fig:'f318',q:`في المثال 3.5، قيم ${e('I₁')} و ${e('I₂')} و ${e('I₃')}:`,
+ o:[e('1 A ، 1 A ، 0'),e('1 A ، 2 A ، −1 A'),e('2 A ، 1 A ، 1 A'),e('1 A ، 1 A ، 2 A')],
+ x:`من الشبكة 2: ${e('i₁ = 2i₂ − 1')}. بالتعويض: ${e('i₂ = 1 A')} و ${e('i₁ = 1 A')}، و ${e('I₃ = i₁ − i₂ = 0')}.`},
+{s:'mesh',q:`لحل النظام ${e('[3 −2; −1 2]·[i₁; i₂] = [1; 1]')} بقاعدة كرامر، قيمة ${e('Δ')}:`,
+ o:[e('4'),e('8'),e('6'),e('−4')],
+ x:`${e('Δ = (3)(2) − (−2)(−1) = 6 − 2 = 4')}. و ${e('Δ₁ = Δ₂ = 4')} ⇒ ${e('i₁ = i₂ = 1 A')}.`},
+{s:'mesh',fig:'f320',q:`في المثال 3.6، كيف نتعامل مع المصدر التابع ${e('4Iₒ')}؟`,
+ o:['نعبّر عن Iₒ بتيارات الشبكات (Iₒ = i₁ − i₂) ثم نعوّض','نعامله كدائرة قصيرة','نهمله لأنه مصدر تابع','نضيف Iₒ كمجهول رابع بلا معادلة إضافية'],
+ x:`${e('Iₒ')} يمر في 10 Ω المشتركة بين الشبكتين 1 و 2، فـ ${e('Iₒ = i₁ − i₂')}. معادلة الشبكة 3 تصبح ${e('−i₁ − i₂ + 2i₃ = 0')}.`},
+{s:'mesh',fig:'f320',q:`ما قيمة ${e('Iₒ')} في المثال 3.6؟`,
+ o:[e('1.5 A'),e('2.25 A'),e('0.75 A'),e('3 A')],
+ x:`${e('Δ = 192, Δ₁ = 432, Δ₂ = 144')} ⇒ ${e('i₁ = 2.25 A, i₂ = 0.75 A')} ⇒ ${e('Iₒ = 1.5 A')}.`},
+{s:'mesh',fig:'f319',q:`في التمرين 3.5 (الشكل 3.19)، قيمتا ${e('i₁')} و ${e('i₂')}:`,
+ o:[e('i₁ = 2.5 A ، i₂ = 0'),e('i₁ = 2.5 A ، i₂ = 1.25 A'),e('i₁ = 0 ، i₂ = 2.5 A'),e('i₁ = 3 A ، i₂ = −1 A')],
+ x:`${e('18i₁ − 12i₂ = 45')} و ${e('−12i₁ + 24i₂ = −30')}. اضربي الأولى في 2 واجمعي: ${e('24i₁ = 60 ⇒ i₁ = 2.5 A')}، ثم ${e('i₂ = 0')}.`},
+{s:'mesh',fig:'f321',q:`في التمرين 3.6 (الشكل 3.21)، قيمة ${e('Iₒ')}:`,
+ o:[e('−4 A'),e('4 A'),e('−2.57 A'),e('1.5 A')],
+ x:`${e('Iₒ')} في الفرع الخارجي الأيسر الذي يخص الشبكة 3 فقط ⇒ ${e('Iₒ = i₃')}. المعادلات: ${e('6i₁ − 2i₂ − 4i₃ = 16')}، ${e('−2i₁ + 10i₂ − 18i₃ = 0')}، ${e('−4i₁ − 8i₂ + 18i₃ = 0')} ⇒ ${e('i₃ = −4 A')}.`}
+];
+
+/* ===================== Quiz engine ===================== */
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const SEC={node:'العقد و Supernode',mesh:'الشبكات Mesh'};
+let set=[],pos=0,filter='all';
+function build(list){set=list.map(i=>{const q=Q[i];const order=shuffle(q.o.map((_,k)=>k));return{i,order,pick:null}});pos=0;render()}
+function start(f){filter=f;build(shuffle(Q.map((_,i)=>i).filter(i=>f==='all'||Q[i].s===f)))}
+const stage=document.getElementById('stage'),track=document.getElementById('track');
+function score(){return set.filter(x=>x.pick!==null&&x.pick===0).length}
+function answered(){return set.filter(x=>x.pick!==null).length}
+function renderTrack(){track.innerHTML=set.map((x,k)=>`<button class="pip ${k===pos?'cur':''} ${x.pick===null?'':(x.pick===0?'ok':'no')}" data-k="${k}" aria-label="سؤال ${k+1}">${k+1}</button>`).join('')}
+function render(){
+  renderTrack();
+  if(pos>=set.length){return results()}
+  const x=set[pos],q=Q[x.i],done=x.pick!==null;
+  let h=`<div class="card"><div class="qmeta"><span>سؤال ${pos+1} من ${set.length} · ${SEC[q.s]}</span><span class="score">${score()} / ${answered()}</span></div>`;
+  if(q.fig)h+=`<figure class="fig" style="margin:0">${FIGS[q.fig]}</figure>`;
+  h+=`<p class="qtext">${q.q}</p><div class="opts">`;
+  x.order.forEach((oi,k)=>{let c='';if(done){if(oi===0)c='right';else if(oi===x.pick)c='wrong';else c='dim'}
+    h+=`<button class="opt ${c}" data-o="${oi}" ${done?'disabled':''}><span class="k">${k+1}</span><span class="t">${q.o[oi]}</span></button>`});
+  h+=`</div>`;
+  if(done){const ok=x.pick===0;h+=`<div class="fb ${ok?'ok':'no'}"><span class="v">${ok?'إجابة صحيحة':'إجابة خاطئة — الصحيح: '+q.o[0]}</span><span>${q.x}</span></div>`}
+  h+=`<div class="nav"><button class="btn" id="prev" ${pos===0?'disabled':''}>→ السابق</button><button class="btn primary" id="next">${pos===set.length-1?'النتيجة':'التالي ←'}</button></div></div>`;
+  stage.innerHTML=h;
+}
+function results(){
+  const tot=set.length,s=score();
+  const per=['node','mesh'].map(k=>{const xs=set.filter(x=>Q[x.i].s===k);return{k,n:xs.length,c:xs.filter(x=>x.pick===0).length}}).filter(r=>r.n);
+  const wrong=set.filter(x=>x.pick!==0).length;
+  const msg=s/tot>=.85?'ممتاز، أنتِ جاهزة للكويز.':s/tot>=.6?'جيد. راجعي الأسئلة الخاطئة ثم أعيديها.':'ارجعي للملخص وركّزي على الأقسام الأضعف أدناه.';
+  stage.innerHTML=`<div class="card res"><div class="big">${s}<small> / ${tot}</small></div><p>${msg}</p>
+   <div class="bars">${per.map(r=>`<div class="bar"><span>${SEC[r.k]}</span><span class="b"><i style="width:${r.c/r.n*100}%"></i></span><span class="n">${r.c}/${r.n}</span></div>`).join('')}</div>
+   <div class="nav" style="justify-content:center"><button class="btn primary" id="redoWrong" ${wrong?'':'disabled'}>أعيدي الخاطئة فقط (${wrong})</button><button class="btn" id="restart">اختبار جديد</button></div></div>`;
+}
+stage.addEventListener('click',ev=>{
+  const o=ev.target.closest('.opt');
+  if(o&&!o.disabled){set[pos].pick=+o.dataset.o;render();return}
+  if(ev.target.id==='next'){pos++;render();window.scrollTo({top:document.getElementById('quiz').offsetTop-10})}
+  if(ev.target.id==='prev'){pos--;render()}
+  if(ev.target.id==='restart')start(filter);
+  if(ev.target.id==='redoWrong')build(shuffle(set.filter(x=>x.pick!==0).map(x=>x.i)));
+});
+track.addEventListener('click',ev=>{const p=ev.target.closest('.pip');if(p){pos=+p.dataset.k;render()}});
+document.getElementById('filters').addEventListener('click',ev=>{const c=ev.target.closest('.chip');if(!c)return;
+  document.querySelectorAll('.chip').forEach(b=>b.setAttribute('aria-pressed',b===c));start(c.dataset.s)});
+document.addEventListener('keydown',ev=>{
+  if(document.getElementById('quiz').hidden||pos>=set.length)return;
+  const x=set[pos];
+  if(/^[1-4]$/.test(ev.key)&&x.pick===null){const oi=x.order[+ev.key-1];if(oi!==undefined){x.pick=oi;render()}}
+  else if(ev.key==='Enter'&&x.pick!==null){pos++;render()}
+});
+
+/* ===================== Tabs ===================== */
+function show(which){
+  const q=which==='quiz';
+  document.getElementById('sum').hidden=q;document.getElementById('quiz').hidden=!q;
+  document.getElementById('t-sum').setAttribute('aria-selected',!q);document.getElementById('t-quiz').setAttribute('aria-selected',q);
+}
+document.getElementById('t-sum').onclick=()=>show('sum');
+document.getElementById('t-quiz').onclick=()=>show('quiz');
+document.getElementById('goQuiz').onclick=()=>{show('quiz');window.scrollTo({top:0})};
+start('all');
+if(location.hash==='#quiz')show('quiz');
+</script>
+
+</body>
+</html>
